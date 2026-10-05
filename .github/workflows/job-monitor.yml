@@ -1,0 +1,75 @@
+name: Job Agent Monitor
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+
+  workflow_dispatch:
+    inputs:
+      max_analyses:
+        description: "Max Gemini analyses this run (blank = MAX_ANALYSES_PER_RUN)"
+        required: false
+        type: string
+      retry_failed:
+        description: "Re-queue jobs whose AI analysis previously failed"
+        required: false
+        type: boolean
+        default: false
+
+# Never let two runs overlap. Overlapping runs were another way to double
+# the request rate against the same Gemini quota.
+concurrency:
+  group: job-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      # Playwright / Chromium used to be installed here on every run, but no
+      # scraper uses it (they all use requests + BeautifulSoup). Removing it
+      # saves a couple of minutes per hourly run.
+      - name: Install dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Run job monitor
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          APP_ENV: production
+
+          # Optional tuning - set under Settings > Secrets and variables >
+          # Actions > Variables. Unset values fall back to safe defaults.
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          GEMINI_FALLBACK_MODEL: ${{ vars.GEMINI_FALLBACK_MODEL }}
+          GEMINI_MIN_INTERVAL_SECONDS: ${{ vars.GEMINI_MIN_INTERVAL_SECONDS }}
+          MAX_ANALYSES_PER_RUN: ${{ vars.MAX_ANALYSES_PER_RUN }}
+
+          # Manual-run inputs (passed via env to avoid shell injection).
+          INPUT_MAX_ANALYSES: ${{ inputs.max_analyses }}
+          INPUT_RETRY_FAILED: ${{ inputs.retry_failed }}
+        run: |
+          ARGS=""
+          if [[ "$INPUT_MAX_ANALYSES" =~ ^[0-9]+$ ]]; then
+            ARGS="$ARGS --max-analyses $INPUT_MAX_ANALYSES"
+          fi
+          if [ "$INPUT_RETRY_FAILED" = "true" ]; then
+            ARGS="$ARGS --retry-failed"
+          fi
+          python -m worker.monitor $ARGS

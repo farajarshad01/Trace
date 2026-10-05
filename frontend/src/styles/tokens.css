@@ -1,0 +1,118 @@
+/* ───────────────────────────────────────────────────────────────────────
+   Trace design tokens
+   Everything visual hangs off these variables. To retune the glass look
+   (more blur, more tint, different palette) change them here only.
+   ─────────────────────────────────────────────────────────────────────── */
+
+:root {
+    --font-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --font-display: "Poppins", "Inter", system-ui, sans-serif;
+
+    --r-xs: 8px;
+    --r-sm: 12px;
+    --r-md: 16px;
+    --r-lg: 22px;
+    --r-xl: 30px;
+    --r-pill: 999px;
+
+    --blur: 22px;
+    --blur-strong: 34px;
+    --saturate: 170%;
+
+    --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --t-fast: 140ms;
+    --t-med: 260ms;
+
+    /* Brand (from the logo) */
+    --brand: #2266fc;
+    --brand-600: #1a55d9;
+    --violet: #7a5cff;
+    --cyan: #12bfe6;
+    --grad-brand: linear-gradient(135deg, #2266fc 0%, #6f5cff 100%);
+    --grad-text: linear-gradient(120deg, #2266fc 0%, #7a5cff 60%, #12bfe6 110%);
+
+    --nav-h: 68px;
+}
+
+/* ── Light ─────────────────────────────────────────────────────────────── */
+:root,
+:root[data-theme="light"] {
+    color-scheme: light;
+
+    --bg: #e9efff;
+    --orb-1: rgba(34, 102, 252, 0.40);
+    --orb-2: rgba(122, 92, 255, 0.32);
+    --orb-3: rgba(18, 191, 230, 0.32);
+    --orb-4: rgba(255, 140, 200, 0.24);
+
+    --ink: #141e32;
+    --ink-2: #46526b;
+    --ink-3: #78849b;
+    --brand-ink: #1a55d9;
+
+    --glass: rgba(255, 255, 255, 0.55);
+    --glass-2: rgba(255, 255, 255, 0.72);
+    --glass-3: rgba(255, 255, 255, 0.9);
+    --glass-border: rgba(255, 255, 255, 0.9);
+    --glass-edge: rgba(20, 30, 70, 0.07);
+    --highlight: rgba(255, 255, 255, 0.95);
+    --shadow: 0 1px 2px rgba(20, 30, 70, 0.05), 0 14px 34px -14px rgba(34, 70, 160, 0.30);
+    --shadow-lg: 0 30px 70px -20px rgba(34, 70, 160, 0.42);
+
+    --field: rgba(255, 255, 255, 0.72);
+    --field-border: rgba(20, 30, 70, 0.11);
+    --chip: rgba(34, 102, 252, 0.10);
+    --chip-ink: #1a55d9;
+    --track: rgba(20, 30, 70, 0.08);
+
+    --good: #0f9b4a;
+    --good-bg: rgba(18, 161, 80, 0.13);
+    --warn: #b86e00;
+    --warn-bg: rgba(245, 158, 11, 0.17);
+    --bad: #d02f40;
+    --bad-bg: rgba(217, 48, 64, 0.11);
+
+    --ring: rgba(34, 102, 252, 0.38);
+    --overlay: rgba(14, 22, 48, 0.38);
+}
+
+/* ── Dark ──────────────────────────────────────────────────────────────── */
+:root[data-theme="dark"] {
+    color-scheme: dark;
+
+    --bg: #060a14;
+    --orb-1: rgba(34, 102, 252, 0.50);
+    --orb-2: rgba(122, 92, 255, 0.40);
+    --orb-3: rgba(18, 191, 230, 0.24);
+    --orb-4: rgba(255, 100, 180, 0.16);
+
+    --ink: #eef2ff;
+    --ink-2: #b1bbd3;
+    --ink-3: #7480a0;
+    --brand-ink: #7ba6ff;
+
+    --glass: rgba(255, 255, 255, 0.06);
+    --glass-2: rgba(255, 255, 255, 0.09);
+    --glass-3: rgba(255, 255, 255, 0.15);
+    --glass-border: rgba(255, 255, 255, 0.13);
+    --glass-edge: rgba(0, 0, 0, 0.4);
+    --highlight: rgba(255, 255, 255, 0.17);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 18px 44px -18px rgba(0, 0, 0, 0.7);
+    --shadow-lg: 0 34px 80px -20px rgba(0, 0, 0, 0.8);
+
+    --field: rgba(255, 255, 255, 0.07);
+    --field-border: rgba(255, 255, 255, 0.15);
+    --chip: rgba(88, 142, 255, 0.18);
+    --chip-ink: #93b5ff;
+    --track: rgba(255, 255, 255, 0.10);
+
+    --good: #3fe0a0;
+    --good-bg: rgba(63, 224, 160, 0.14);
+    --warn: #fbbf4a;
+    --warn-bg: rgba(251, 191, 74, 0.15);
+    --bad: #ff7a86;
+    --bad-bg: rgba(255, 122, 134, 0.14);
+
+    --ring: rgba(123, 166, 255, 0.5);
+    --overlay: rgba(2, 5, 14, 0.62);
+}

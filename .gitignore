@@ -1,0 +1,44 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+dist/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Playwright
+playwright-report/
+test-results/
+
+# Local files
+uploads/
+# Tests
+.pytest_cache/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+FIXES.md
