@@ -15,8 +15,6 @@ Job analysis (AI) ─┘
 **Stack:** React 19 + Vite · FastAPI · PostgreSQL (Supabase) · Supabase Auth &
 Storage · Google Gemini · GitHub Actions (hourly worker).
 
-> See **[FIXES.md](FIXES.md)** for what changed in this revision, including why
-> Gemini was always "busy".
 
 ---
 
