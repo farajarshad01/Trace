@@ -83,6 +83,9 @@ Optional **variables** (Settings → Secrets and variables → Actions → Varia
 Paying for Gemini? Set `GEMINI_MIN_INTERVAL_SECONDS=0.5` and raise
 `MAX_ANALYSES_PER_RUN` to drain the backlog faster.
 
+### Which jobs are kept
+Only jobs whose **title matches your target roles** (Resume page → Target roles) are saved and shown. Add or remove roles there; the change applies on the next hourly run. If you set no roles, everything is kept. Matching rules: see `backend/app/services/role_filter.py` and FIXES.md.
+
 ### Supported career pages
 Greenhouse and Lever (richest data), Workday (via its JSON API — unofficial,
 verify against your target companies), and a generic fallback that finds
