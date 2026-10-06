@@ -109,3 +109,20 @@ def test_application_lifecycle_and_applied_date():
 def test_url_normalisation():
     assert normalize_source_url("HTTPS://Example.COM/Careers/#top") == "https://example.com/Careers"
     assert normalize_source_url("https://a.com/x/") == normalize_source_url("https://a.com/x")
+
+
+def test_enum_columns_persist_values_not_names():
+    """Regression: 'ACTIVE' violated the DB's jobs_status_check constraint."""
+    from sqlalchemy import text
+
+    db = fresh_db()
+    u = make_user(db)
+    job = add_job(db, make_source(db, u))
+    update_application(db, u.id, job.id, m.ApplicationStatus.INTERVIEW, "n")
+
+    assert db.execute(text("select status from jobs")).scalar() == "active"
+    assert db.execute(text("select status from applications")).scalar() == "Interview"
+
+    db.expire_all()
+    assert db.query(m.Job).first().status is m.JobStatus.ACTIVE      # round-trips to the enum
+    assert db.query(m.Application).first().status is m.ApplicationStatus.INTERVIEW

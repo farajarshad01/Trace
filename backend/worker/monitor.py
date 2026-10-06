@@ -85,6 +85,24 @@ logger = logging.getLogger("trace.worker")
 # Stop analysing after this many overload/rate-limit failures in a row.
 BREAKER_THRESHOLD = 2
 
+# Give up on a source after this many failed saves with none succeeding. A
+# run of identical failures means a systemic problem (schema/constraint
+# mismatch), not bad data, and retrying hundreds of rows only floods the log.
+SAVE_FAILURE_LIMIT = 3
+
+
+def _short(exc: Exception, limit: int = 240) -> str:
+    """
+    One readable line. SQLAlchemy errors embed the entire INSERT with every
+    bound parameter - for a job that is the full page text, i.e. 16 KB of log
+    per failure.
+    """
+
+    root = getattr(exc, "orig", None) or exc
+    first_line = (str(root).strip().splitlines() or [type(root).__name__])[0]
+
+    return first_line[:limit]
+
 
 @dataclass
 class Summary:
@@ -134,6 +152,7 @@ def process_source(
 
     detail_fetches = 0
     errors = 0
+    saved = 0
 
     for scraped in jobs:
         try:
@@ -164,6 +183,7 @@ def process_source(
 
             save_scraped_job(db, source, scraped)
 
+            saved += 1
             summary.jobs_seen += 1
 
             if existing is None:
@@ -172,7 +192,17 @@ def process_source(
         except Exception as exc:  # noqa: BLE001
             errors += 1
             db.rollback()
-            logger.warning("  failed saving a job: %s", exc)
+            logger.warning("  failed saving a job: %s", _short(exc))
+
+            if saved == 0 and errors >= SAVE_FAILURE_LIMIT:
+                logger.error(
+                    "  giving up on %s after %d failed saves with none "
+                    "succeeding - this is a database/schema problem, not "
+                    "bad data: %s",
+                    company, errors, _short(exc),
+                )
+                summary.sources_failed += 1
+                return
 
     # Only close postings when the scrape clearly worked. An empty or
     # partially failed scrape must never wipe out a whole board.
@@ -183,8 +213,12 @@ def process_source(
         if closed:
             logger.info("  closed %d jobs no longer listed", closed)
 
-    source.last_checked_at = datetime.now(timezone.utc)
-    db.commit()
+    # Only claim the source was checked if it really worked: either it has no
+    # openings, or at least some of what we found was saved. Otherwise the
+    # Companies page said "checked 1 min ago" while nothing had been stored.
+    if not jobs or saved > 0:
+        source.last_checked_at = datetime.now(timezone.utc)
+        db.commit()
 
 
 def scrape_all(db, run_started_at: datetime, summary: Summary) -> None:

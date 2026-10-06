@@ -97,3 +97,105 @@ def test_generic_scraper_extracts_unique_relevant_links(monkeypatch):
     monkeypatch.setattr(generic.requests, "get", lambda *a, **k: Resp(text=html))
     jobs = GenericScraper().scrape("https://acme.com/careers")
     assert [j["original_url"] for j in jobs] == ["https://acme.com/jobs/1"]
+
+
+# ── generic scraper: the 10Pearls / Wamo Labs regression ────────────────
+
+from app.scrapers import generic as generic_mod
+
+
+def _page(monkeypatch, html):
+    monkeypatch.setattr(generic_mod.requests, "get", lambda *a, **k: Resp(text=html))
+
+
+SERVICES_SITE = """
+<html><body class="nav-open">
+<header><nav>
+  <a href="/services/ai-integration">AI &amp; Machine Learning</a>
+  <a href="/services/custom-web">Full-Stack Web Development</a>
+  <a href="/industries/healthcare">Healthcare &amp; Pharma Clinical AI</a>
+  <a href="/podcast">Podcast Operators on AI in production</a>
+</nav></header>
+<main>
+  <h1>We're hiring</h1><p>No role that fits yet? Send us the strongest thing you shipped.</p>
+  <a href="/careers">Early careers Graduate engineering program</a>
+  <a href="/contact">Start an AI project</a>
+</main>
+<footer><a href="/services/ai-integration">AI Software Development</a></footer>
+<div id="cookie-banner"><a href="/privacy">Machine learning cookies</a></div>
+</body></html>
+"""
+
+
+def test_menus_footers_and_cookie_banners_are_not_jobs(monkeypatch):
+    _page(monkeypatch, SERVICES_SITE)
+    assert GenericScraper().scrape("https://www.wamolabs.com/careers") == []
+
+
+def test_real_postings_are_found_and_decoys_are_ignored(monkeypatch):
+    html = """<body>
+      <nav><a href="/services/ai">AI Software Development</a></nav>
+      <main>
+        <a href="/careers/senior-backend-engineer">Senior Backend Engineer</a>
+        <a href="/jobs/123-data-scientist">Data Scientist</a>
+        <a href="/jobs/55">Maintenance Technician</a>
+        <a href="/careers">Careers home - software engineering</a>
+        <a href="https://apply.workable.com/acme/j/ABC123/">Python Developer</a>
+        <a href="/blog/how-we-build-ai">How we build AI software</a>
+      </main></body>"""
+    _page(monkeypatch, html)
+    urls = sorted(j["original_url"] for j in GenericScraper().scrape("https://acme.com/careers"))
+    assert urls == [
+        "https://acme.com/careers/senior-backend-engineer",
+        "https://acme.com/jobs/123-data-scientist",
+        "https://apply.workable.com/acme/j/ABC123/",
+    ]
+
+
+def test_a_wrapper_class_like_nav_open_does_not_wipe_the_page(monkeypatch):
+    html = '<body class="nav-open"><div class="site menu-open"><main><a href="/jobs/9">Backend Engineer</a></main></div></body>'
+    _page(monkeypatch, html)
+    assert len(GenericScraper().scrape("https://acme.com/careers")) == 1
+
+
+def test_json_ld_jobposting_is_used_when_present(monkeypatch):
+    ld = '''{"@context":"https://schema.org","@graph":[{"@type":"JobPosting","title":"ML Engineer",
+      "url":"https://acme.com/jobs/ml-engineer","employmentType":"FULL_TIME",
+      "description":"&lt;p&gt;Build models. 5+ years of experience required.&lt;/p&gt;",
+      "jobLocation":{"address":{"addressLocality":"Karachi","addressCountry":"PK"}}}]}'''
+    _page(monkeypatch, f'<html><head><script type="application/ld+json">{ld}</script></head><body><nav><a href="/x">AI Services</a></nav></body></html>')
+    jobs = GenericScraper().scrape("https://acme.com/careers")
+    assert len(jobs) == 1
+    assert jobs[0]["title"] == "ML Engineer" and jobs[0]["location"] == "Karachi, PK"
+    assert jobs[0]["description"].startswith("Build models.")
+
+
+def test_embedded_greenhouse_board_is_delegated_to_the_greenhouse_scraper(monkeypatch):
+    seen = {}
+    def fake_scrape(self, url):
+        seen["url"] = url
+        return [{"title": "Dev", "original_url": "https://boards.greenhouse.io/acme/jobs/1", "platform": "greenhouse"}]
+    monkeypatch.setattr(greenhouse.GreenhouseScraper, "scrape", fake_scrape)
+    _page(monkeypatch, '<html><body><iframe src="https://boards.greenhouse.io/embed/job_board?for=acme"></iframe></body></html>')
+    jobs = GenericScraper().scrape("https://acme.com/careers")
+    assert jobs[0]["platform"] == "greenhouse" and "for=acme" in seen["url"]
+
+
+def test_failed_ats_delegation_falls_back_to_links(monkeypatch):
+    def boom(self, url): raise RuntimeError("404")
+    monkeypatch.setattr(lever.LeverScraper, "scrape", boom)
+    _page(monkeypatch, '<main><a href="https://jobs.lever.co/acme">Our jobs</a><a href="/jobs/7">Backend Engineer</a></main>')
+    assert [j["title"] for j in GenericScraper().scrape("https://acme.com/careers")] == ["Backend Engineer"]
+
+
+def test_fetch_description_rejects_marketing_pages_and_strips_cookie_text(monkeypatch):
+    marketing = "<main>" + "<p>We deliver scalable AI solutions for enterprises worldwide.</p>" * 12 + "</main>"
+    _page(monkeypatch, marketing)
+    assert GenericScraper().fetch_description({"original_url": "https://acme.com/jobs/1"}) is None
+
+    posting = ('<main><h1>Backend Engineer</h1><p>About the role: you will build APIs.</p>'
+               + '<p>Responsibilities include designing services and reviewing code every day.</p>' * 4
+               + '<div class="cookie-banner">Enable or Disable Cookies Save Changes</div></main>')
+    _page(monkeypatch, posting)
+    text = GenericScraper().fetch_description({"original_url": "https://acme.com/jobs/1"})
+    assert "build APIs" in text and "Cookies" not in text

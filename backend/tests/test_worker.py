@@ -364,3 +364,49 @@ def test_inactive_sources_are_ignored(monkeypatch):
     Harness(monkeypatch, {src.career_url: FakeScraper(jobs_for("a", 3))})
     monitor.run_monitor(analyze=False)
     assert count(db, m.Job) == 0
+
+
+# ── failure visibility ───────────────────────────────────────────────────
+
+def test_systemic_save_failures_stop_the_source_early_and_do_not_claim_it_was_checked(monkeypatch, caplog):
+    from sqlalchemy.exc import IntegrityError
+
+    db = fresh_db()
+    src = make_source(db, make_user(db), url="https://x/board")
+    Harness(monkeypatch, {src.career_url: FakeScraper(jobs_for("a", 40))})
+
+    attempts = []
+
+    def always_fails(db_, source, scraped):
+        attempts.append(1)
+        raise IntegrityError("INSERT INTO jobs ... " + "X" * 5000, {}, Exception("CHECK constraint failed: jobs_status_check"))
+
+    monkeypatch.setattr(monitor, "save_scraped_job", always_fails)
+
+    summary = monitor.run_monitor(analyze=False)
+
+    assert len(attempts) == monitor.SAVE_FAILURE_LIMIT          # 3, not 40
+    assert summary.sources_failed == 1
+    db.expire_all()
+    assert db.query(m.CareerSource).first().last_checked_at is None   # not "checked 1 min ago"
+    # the huge INSERT must not be dumped into the log
+    assert all(len(r.getMessage()) < 600 for r in caplog.records)
+    assert "jobs_status_check" in caplog.text
+
+
+def test_a_source_with_some_good_saves_is_marked_checked(monkeypatch):
+    db = fresh_db()
+    src = make_source(db, make_user(db), url="https://x/board")
+    Harness(monkeypatch, {src.career_url: FakeScraper(jobs_for("a", 3))})
+    monitor.run_monitor(analyze=False)
+    db.expire_all()
+    assert db.query(m.CareerSource).first().last_checked_at is not None
+
+
+def test_a_page_with_no_openings_is_still_marked_checked(monkeypatch):
+    db = fresh_db()
+    src = make_source(db, make_user(db), url="https://x/board")
+    Harness(monkeypatch, {src.career_url: FakeScraper([])})
+    monitor.run_monitor(analyze=False)
+    db.expire_all()
+    assert db.query(m.CareerSource).first().last_checked_at is not None

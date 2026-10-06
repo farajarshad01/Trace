@@ -34,6 +34,25 @@ class JobStatus(str, Enum):
     UNKNOWN = "unknown"
 
 
+def _enum_column(enum_cls):
+    """
+    Store the enum's *value* ("active", "Saved") rather than its *name*
+    ("ACTIVE", "SAVED"), as a plain string column.
+
+    SQLAlchemy's default persists the name. A hand-written schema (e.g. in the
+    Supabase SQL editor) typically has ``CHECK (status IN ('active', ...))``
+    using the values, so every insert failed with ``jobs_status_check``.
+    """
+
+    return SQLEnum(
+        enum_cls,
+        native_enum=False,
+        create_constraint=False,
+        values_callable=lambda members: [m.value for m in members],
+        length=max(len(m.value) for m in enum_cls),
+    )
+
+
 class UserProfile(Base):
     __tablename__ = "profiles"
 
@@ -307,7 +326,7 @@ class Job(Base):
     )
 
     status: Mapped[JobStatus] = mapped_column(
-        SQLEnum(JobStatus),
+        _enum_column(JobStatus),
         default=JobStatus.ACTIVE,
         nullable=False,
     )
@@ -407,7 +426,7 @@ class Application(Base):
     )
 
     status: Mapped[ApplicationStatus] = mapped_column(
-        SQLEnum(ApplicationStatus),
+        _enum_column(ApplicationStatus),
         default=ApplicationStatus.SAVED,
         nullable=False,
     )
