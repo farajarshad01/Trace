@@ -74,9 +74,11 @@ from app.services.job_service import (
     close_missing_jobs,
     find_job,
     normalize_source_url,
+    roles_for_source,
     save_scraped_job,
     store_analysis,
 )
+from app.services.role_filter import filter_jobs
 from app.services.source_service import get_scraper
 
 
@@ -109,6 +111,7 @@ class Summary:
     sources: int = 0
     sources_failed: int = 0
     jobs_seen: int = 0
+    jobs_filtered: int = 0
     jobs_new: int = 0
     jobs_closed: int = 0
     analyzed: int = 0
@@ -138,17 +141,33 @@ def process_source(
 
     try:
         if cache_key in scraped_cache:
-            jobs = scraped_cache[cache_key]
+            all_jobs = scraped_cache[cache_key]
         else:
-            jobs = scraper.scrape(source.career_url)
-            scraped_cache[cache_key] = jobs
+            all_jobs = scraper.scrape(source.career_url)
+            scraped_cache[cache_key] = all_jobs
     except Exception as exc:  # noqa: BLE001
         db.rollback()
         summary.sources_failed += 1
         logger.error("Source failed (%s): %s", company, exc)
         return
 
-    logger.info("  found %d jobs", len(jobs))
+    # Only keep jobs whose title matches the roles the user is looking for.
+    # (Before this, every posting a company had was saved and shown, so a
+    # "Salesforce Developer" appeared for a backend/AI profile.)
+    roles = roles_for_source(db, source)
+    jobs = filter_jobs(all_jobs, roles)
+    summary.jobs_filtered += len(all_jobs) - len(jobs)
+
+    if roles:
+        logger.info(
+            "  found %d jobs, %d match your target roles (%s)",
+            len(all_jobs), len(jobs), ", ".join(roles[:6]),
+        )
+    else:
+        logger.info(
+            "  found %d jobs (no target roles set, so keeping all)",
+            len(all_jobs),
+        )
 
     detail_fetches = 0
     errors = 0
@@ -205,8 +224,10 @@ def process_source(
                 return
 
     # Only close postings when the scrape clearly worked. An empty or
-    # partially failed scrape must never wipe out a whole board.
-    if jobs and errors == 0:
+    # partially failed scrape must never wipe out a whole board. This looks at
+    # what the company LISTED (all_jobs), not what matched: jobs that no longer
+    # match your roles are closed too, so they drop off the dashboard.
+    if all_jobs and errors == 0:
         closed = close_missing_jobs(db, source, run_started_at)
         summary.jobs_closed += closed
 
@@ -486,8 +507,10 @@ def _log_summary(s: Summary) -> None:
 
     logger.info("─" * 60)
     logger.info(
-        "Sources: %d (%d failed) | Jobs: %d seen, %d new, %d closed",
-        s.sources, s.sources_failed, s.jobs_seen, s.jobs_new, s.jobs_closed,
+        "Sources: %d (%d failed) | Jobs: %d saved (%d new), %d skipped as "
+        "not matching your roles, %d closed",
+        s.sources, s.sources_failed, s.jobs_seen, s.jobs_new,
+        s.jobs_filtered, s.jobs_closed,
     )
     logger.info(
         "Analysis: %d done, %d reused, %d failed, %d too short, "

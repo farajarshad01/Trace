@@ -273,3 +273,54 @@ def user_job_scope(db: Session, user_id):
         Job.source_id.in_(ids),
         func.lower(Job.company_name).in_(names),
     )
+
+
+# ── target roles ──────────────────────────────────────────────────────────
+
+def get_user_roles(db: Session, user_id) -> list[str]:
+    rows = (
+        db.query(TargetRole.role_title)
+        .filter(TargetRole.user_id == user_id, TargetRole.is_active.is_(True))
+        .all()
+    )
+
+    return sorted(
+        {r.role_title.strip() for r in rows if r.role_title and r.role_title.strip()},
+        key=str.lower,
+    )
+
+
+def roles_for_source(db: Session, source: CareerSource) -> list[str]:
+    """
+    The roles a scraped job must match to be worth saving for ``source``.
+
+    Jobs are shared by everyone who tracks the same company, so this is the
+    union of the roles of all of them. If ANY of those users has no target
+    roles they want everything, so nothing is filtered (returns []).
+    """
+
+    owners = {source.user_id}
+
+    same_company = (
+        db.query(CareerSource.user_id)
+        .filter(
+            CareerSource.is_active.is_(True),
+            func.lower(CareerSource.company_name)
+            == (source.company_name or "").strip().lower(),
+        )
+        .all()
+    )
+
+    owners.update(row.user_id for row in same_company)
+
+    union: set[str] = set()
+
+    for owner in owners:
+        roles = get_user_roles(db, owner)
+
+        if not roles:
+            return []
+
+        union.update(roles)
+
+    return sorted(union, key=str.lower)

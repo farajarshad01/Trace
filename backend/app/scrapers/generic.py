@@ -1,5 +1,7 @@
 """
-Fallback scraper for arbitrary company careers pages.
+Fallback scraper for arbitrary company careers pages. It returns every
+posting it can recognise; the worker then keeps only those matching the
+user's target roles.
 
 The first version treated *any* link whose text contained a word like "AI" or
 "Development" as a job. On real company sites that picks up the navigation
@@ -39,23 +41,47 @@ from app.scrapers.base import (
 logger = logging.getLogger("trace.scraper")
 
 
-# Word boundaries matter: a bare substring check treated "ai" as a keyword,
-# so "Maintenance Technician" or "Retail Assistant" matched.
-_JOB_KEYWORDS = re.compile(
-    r"\b(?:engineer|engineering|developer|software|machine learning|"
-    r"data scientist|data analyst|analyst|scientist|architect|researcher|"
-    r"programmer|qa|tester|intern|internship|trainee|backend|frontend|"
-    r"full[\s-]?stack|python|devops|sre|ai|ml)\b",
+# A sanity check that a link's text is a job *title* and not "Benefits" or
+# "Our culture". Deliberately broad (not tech-only): WHICH jobs you want is
+# decided by your target roles in the worker, not here. The old hard-coded
+# engineering keyword list wrongly dropped valid postings like "Technical
+# Consultant" and let in any link containing "AI".
+_TITLE_NOUN = re.compile(
+    r"\b(?:engineers?|engineering|developers?|programmers?|architects?|"
+    r"scientists?|researchers?|analysts?|consultants?|designers?|managers?|"
+    r"directors?|leads?|specialists?|executives?|officers?|associates?|"
+    r"assistants?|coordinators?|administrators?|technicians?|representatives?|"
+    r"recruiters?|accountants?|writers?|editors?|strategists?|advisors?|"
+    r"testers?|interns?|internships?|trainees?|apprentices?|supervisors?|"
+    r"planners?|operators?|instructors?|trainers?|producers?|devops|sre|"
+    r"sdet|qa|head|vp|president|clerk|agent|analytics)\b",
+    re.IGNORECASE,
+)
+
+# Where a card's title ends and its metadata ("Posted 15 days ago", "On-site",
+# "Full-time") begins. Links usually wrap the WHOLE card, so without this the
+# title was saved as "Senior Salesforce Developer Posted 15 days ago On-site...".
+_META_START = re.compile(
+    r"\b(?:posted\b|\d+\s+(?:minutes?|hours?|days?|weeks?|months?)\s+ago|"
+    r"on[\s-]?site\b|remote\b|hybrid\b|full[\s-]?time\b|part[\s-]?time\b|"
+    r"contract\b|apply\b|view\s+(?:job|details)|read\s+more)",
     re.IGNORECASE,
 )
 
 # /jobs/<slug>, /careers/<slug>, /open-roles/<slug>, /positions/<id> ...
 # The segment AFTER the keyword is required, so the listing page itself
 # ("/careers") never counts as a job.
+_JOB_WORDS = (
+    r"(?:jobs?|careers?|positions?|openings?|vacanc(?:y|ies)|"
+    r"opportunit(?:y|ies)|roles?|requisitions?|postings?)"
+)
 _JOB_PATH = re.compile(
-    r"(?:^|/)[\w-]*(?:jobs?|careers?|positions?|openings?|vacanc(?:y|ies)|"
-    r"opportunit(?:y|ies)|roles?|requisitions?|postings?)/[^/?#]+",
-    re.IGNORECASE,
+    rf"(?:^|/)[\w-]*{_JOB_WORDS}[\w-]*/[^/?#]+", re.IGNORECASE,
+)
+# /job-details?id=123  (the id is in the query string, not the path)
+_JOB_QUERY_PATH = re.compile(rf"(?:^|/)[\w-]*{_JOB_WORDS}[\w-]*$", re.IGNORECASE)
+_JOB_QUERY_ID = re.compile(
+    r"(?:^|&)(?:id|job_?id|jid|pid|req(?:uisition)?_?id|gh_jid)=", re.IGNORECASE,
 )
 
 # Hosted applicant-tracking systems whose job links are valid on any path.
@@ -194,7 +220,32 @@ def _is_job_url(url: str, listing_url: str) -> bool:
     if any(host == h or host.endswith("." + h) for h in _ATS_HOSTS):
         return True
 
-    return bool(_JOB_PATH.search(parsed.path))
+    if _JOB_PATH.search(parsed.path):
+        return True
+
+    return bool(
+        _JOB_QUERY_PATH.search(parsed.path.rstrip("/"))
+        and _JOB_QUERY_ID.search(parsed.query)
+    )
+
+
+def _link_title(link) -> str:
+    """The job title for a link, even when the link wraps an entire card."""
+
+    heading = link.find(re.compile(r"^h[1-6]$"))
+    titled = link.find(class_=re.compile(r"title|job-?name|position|role", re.I))
+    node = heading or titled or link
+
+    text = node.get_text(" ", strip=True)
+
+    # The first metadata marker that is not at the very start. (A leading
+    # "Remote" belongs to the title: "Remote Support Engineer".)
+    for meta in _META_START.finditer(text):
+        if meta.start() >= _MIN_TITLE:
+            text = text[: meta.start()]
+            break
+
+    return re.sub(r"[\s|·•\-–—:,(]+$", "", text).strip()
 
 
 class GenericScraper(BaseScraper):
@@ -289,16 +340,9 @@ class GenericScraper(BaseScraper):
         _remove_chrome(soup)
 
         unique: dict[str, dict] = {}
+        anchors = soup.find_all("a", href=True)
 
-        for link in soup.find_all("a", href=True):
-            title = link.get_text(" ", strip=True)
-
-            if not (_MIN_TITLE <= len(title) <= _MAX_TITLE):
-                continue
-
-            if not _JOB_KEYWORDS.search(title):
-                continue
-
+        for link in anchors:
             href = link["href"].strip()
 
             if href.startswith(("mailto:", "tel:", "javascript:", "#")):
@@ -309,14 +353,30 @@ class GenericScraper(BaseScraper):
             if not job_url or not _is_job_url(job_url, page_url):
                 continue
 
-            unique[job_url] = {
-                "title": title,
-                "original_url": job_url,
-                "location": None,
-                "employment_type": None,
-                "description": None,           # fetched lazily
-                "platform": "generic",
-            }
+            title = _link_title(link)
+
+            if not (_MIN_TITLE <= len(title) <= _MAX_TITLE):
+                continue
+
+            if not _TITLE_NOUN.search(title):
+                continue
+
+            unique.setdefault(
+                job_url,
+                {
+                    "title": title,
+                    "original_url": job_url,
+                    "location": None,
+                    "employment_type": None,
+                    "description": None,           # fetched lazily
+                    "platform": "generic",
+                },
+            )
+
+        logger.info(
+            "  %s: %d links in main content, %d look like job postings",
+            page_url, len(anchors), len(unique),
+        )
 
         return list(unique.values())
 

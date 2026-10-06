@@ -89,7 +89,7 @@ export default function Dashboard({ onNavigate }) {
                 <div>
                     <div className="eyebrow">Dashboard</div>
                     <h1>Jobs picked for you</h1>
-                    <p className="sub">Fresh openings from the companies you follow, ranked by how well they fit your resume.</p>
+                    <p className="sub">Openings from the companies you follow that match your target roles, ranked by how well they fit your resume.</p>
                 </div>
 
                 <div className="page-actions">
@@ -136,9 +136,13 @@ export default function Dashboard({ onNavigate }) {
                             </>
                         ) : (
                             <>
-                                <h3>No jobs yet</h3>
-                                <p>Add the career pages of companies you'd like to work at. Trace checks them every hour and jobs will appear here.</p>
-                                <button type="button" className="btn btn-primary" onClick={() => onNavigate("companies")}><Icon name="plus" /> Add companies</button>
+                                <h3>No matching jobs yet</h3>
+                                <p>Trace only keeps jobs whose titles match your target roles. Add more companies to watch, or check your roles. New jobs appear after the next hourly check.</p>
+
+                                <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+                                    <button type="button" className="btn btn-primary" onClick={() => onNavigate("companies")}><Icon name="plus" /> Add companies</button>
+                                    <button type="button" className="btn btn-glass" onClick={() => onNavigate("resume")}><Icon name="target" /> Edit target roles</button>
+                                </div>
                             </>
                         )}
                     </div>

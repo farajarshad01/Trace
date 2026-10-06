@@ -16,8 +16,10 @@ from app.schemas.job import JobResponse
 from app.services.job_service import (
     analysis_to_dict,
     build_match_context,
+    get_user_roles,
     user_job_scope,
 )
+from app.services.role_filter import title_matches_roles
 
 
 router = APIRouter(
@@ -88,6 +90,9 @@ def get_jobs(
     db: Session = Depends(get_db),
     limit: int = Query(default=100, ge=1, le=300),
     offset: int = Query(default=0, ge=0),
+    # Only jobs whose title matches your target roles. Pass false to see
+    # everything stored for your companies.
+    role_filter: bool = Query(default=True),
 ):
     scope = user_job_scope(db, user_id)
 
@@ -103,6 +108,16 @@ def get_jobs(
         .filter(Job.status == JobStatus.ACTIVE, scope)
         .all()
     )
+
+    if role_filter:
+        roles = get_user_roles(db, user_id)
+
+        if roles:
+            rows = [
+                (job, analysis)
+                for job, analysis in rows
+                if title_matches_roles(job.title, roles)
+            ]
 
     candidate = build_match_context(db, user_id)
 
