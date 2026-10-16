@@ -44,7 +44,7 @@ export default function Login() {
             <section className="auth-hero">
                 <Logo height={36} />
 
-                <h1>Your job search,<br /><span className="grad-text">on autopilot.</span></h1>
+                <h1>Your job search,<br /><span className="accent-text">on autopilot.</span></h1>
 
                 <p className="lead">
                     Upload your resume once. Trace watches the career pages you care about and

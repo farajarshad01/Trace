@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -14,6 +16,16 @@ from app.api.applications import (
 )
 from app.core.config import settings
 from app.database import models  # noqa: F401  (registers the tables)
+from app.database.connection import engine
+from app.database.extras import ensure_extra_tables
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Hidden jobs + company logos live in their own tables, created on demand.
+    ensure_extra_tables(engine)
+
+    yield
 
 
 app = FastAPI(
@@ -22,7 +34,8 @@ app = FastAPI(
         "AI-powered personalized "
         "job tracking platform"
     ),
-    version="1.1.0",
+    version="1.2.0",
+    lifespan=lifespan,
 )
 
 

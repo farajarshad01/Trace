@@ -1,0 +1,932 @@
+/* ───────────────────────────────────────────────────────────────────────
+   Triage dashboard: summary | deck | queue
+   One job at a time, with two cards peeking out underneath.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.kbd {
+    display: inline-grid;
+    place-items: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border-radius: 6px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: var(--ink-3);
+    background: var(--glass-2);
+    box-shadow: 0 0 0 1px var(--glass-edge) inset, 0 1px 0 var(--highlight);
+}
+
+@media (hover: none) {
+    .kbd {
+        display: none;
+    }
+}
+
+/* ── Layout ───────────────────────────────────────────────────────────── */
+.triage {
+    display: grid;
+    grid-template-columns: 276px minmax(0, 1fr) 330px;
+    grid-template-areas: "sum stage queue";
+    gap: 14px;
+    height: calc(100vh - var(--rail-gap) * 2);
+    min-height: 660px;
+}
+
+.rail~.triage {
+    margin: var(--rail-gap) var(--rail-gap) var(--rail-gap) calc(var(--rail-w) + var(--rail-gap) * 2);
+}
+
+.tri-sum {
+    grid-area: sum;
+}
+
+.tri-stage {
+    grid-area: stage;
+}
+
+.tri-queue {
+    grid-area: queue;
+}
+
+/* ── Summary (left) ───────────────────────────────────────────────────── */
+.tri-sum {
+    padding: 24px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    border-radius: var(--r-xl);
+    overflow-y: auto;
+    box-shadow: var(--e2), inset 0 1px 0 var(--highlight), 0 0 0 1px var(--glass-edge);
+}
+
+.tri-sum-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.tri-sum h1 {
+    font-size: 1.45rem;
+    margin-top: 6px;
+}
+
+.tri-sub {
+    color: var(--ink-2);
+    font-size: 0.84rem;
+    margin-top: 6px;
+}
+
+.tri-big {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 3rem;
+    letter-spacing: -0.04em;
+    line-height: 1;
+}
+
+.tri-big span {
+    font-size: 1.3rem;
+    color: var(--ink-3);
+    font-weight: 600;
+    letter-spacing: 0;
+}
+
+.tri-stat {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 0;
+    text-align: left;
+    font-size: 0.9rem;
+    color: var(--ink);
+}
+
+.tri-stat+.tri-stat {
+    border-top: 1px solid var(--glass-edge);
+}
+
+.tri-stat b {
+    margin-left: auto;
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+}
+
+.tri-stat .ic {
+    width: 36px;
+    height: 36px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    background: var(--chip);
+    color: var(--brand-ink);
+    flex-shrink: 0;
+}
+
+.tri-stat .ic svg {
+    width: 18px;
+    height: 18px;
+}
+
+button.tri-stat {
+    transition: color var(--t-fast);
+}
+
+button.tri-stat:hover,
+.tri-stat.on {
+    color: var(--brand-ink);
+}
+
+.tri-notes {
+    margin-top: auto;
+    display: grid;
+    gap: 12px;
+}
+
+.tri-note {
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: var(--glass-2);
+    box-shadow: 0 0 0 1px var(--glass-edge) inset;
+    font-size: 0.8rem;
+    color: var(--ink-2);
+}
+
+.tri-note p {
+    margin-top: 4px;
+}
+
+.tri-note-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 0.86rem;
+    color: var(--ink);
+    margin-bottom: 8px;
+}
+
+.tri-note-title svg {
+    width: 16px;
+    height: 16px;
+    color: var(--brand-ink);
+}
+
+.tri-link {
+    margin-top: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--brand-ink);
+}
+
+.tri-link svg {
+    width: 14px;
+    height: 14px;
+}
+
+/* ── Stage (centre) ───────────────────────────────────────────────────── */
+.tri-stage {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+    max-width: 680px;
+    margin-inline: auto;
+    padding-top: 2px;
+}
+
+.tri-progress {
+    margin-bottom: 18px;
+}
+
+.tri-segs {
+    display: flex;
+    gap: 6px;
+}
+
+.tri-segs i {
+    flex: 1;
+    height: 6px;
+    border-radius: 6px;
+    background: var(--track);
+}
+
+.tri-segs i.c {
+    background: var(--brand);
+}
+
+.tri-segs i.now {
+    background: var(--brand);
+    opacity: 0.45;
+}
+
+.tri-progress-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--ink-3);
+}
+
+.tri-sort {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.tri-sort select {
+    background: none;
+    border: 0;
+    font: inherit;
+    font-weight: 700;
+    color: var(--ink-2);
+    padding: 0 2px;
+    cursor: pointer;
+}
+
+.tri-sort select option {
+    color: #141e32;
+    background: #fff;
+}
+
+.tri-stage-inner {
+    display: flex;
+    flex-direction: column;
+}
+
+.tri-deck {
+    position: relative;
+    height: clamp(380px, calc(100vh - 336px), 640px);
+    margin-bottom: 34px;
+}
+
+.tri-peek {
+    position: absolute;
+    border-radius: 32px;
+    background: var(--solid);
+    border: 1px solid var(--glass-border);
+}
+
+.tri-peek.p1 {
+    left: 20px;
+    right: 20px;
+    top: 24px;
+    bottom: 14px;
+    box-shadow: var(--e2);
+    opacity: 0.85;
+    z-index: 2;
+}
+
+.tri-peek.p2 {
+    left: 40px;
+    right: 40px;
+    top: 48px;
+    bottom: 0;
+    box-shadow: var(--e1);
+    opacity: 0.55;
+    z-index: 1;
+}
+
+.tri-card {
+    position: absolute;
+    z-index: 3;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 28px;
+    display: flex;
+    flex-direction: column;
+    padding: 28px 34px 24px;
+    overflow-y: auto;
+    border-radius: 32px;
+    background: var(--solid);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--e3), inset 0 1px 0 var(--highlight);
+    animation: triIn 0.3s var(--ease) backwards;
+}
+
+@keyframes triIn {
+    from {
+        opacity: 0;
+        transform: translateY(14px) scale(0.985);
+    }
+}
+
+.tri-card-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.avatar.tri-avatar {
+    width: 68px;
+    height: 68px;
+    border-radius: 22px;
+    font-size: 1.5rem;
+}
+
+.avatar.tri-avatar.has-logo {
+    padding: 10px;
+}
+
+.tri-card-title {
+    flex: 1;
+    min-width: 0;
+}
+
+.tri-card-title h2 {
+    font-size: 1.7rem;
+    line-height: 1.15;
+    margin-top: 5px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.tri-chips {
+    margin-top: 16px;
+}
+
+.tri-summary {
+    margin-top: 14px;
+    font-size: 0.98rem;
+    color: var(--ink-2);
+}
+
+.tri-summary.pending {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-style: italic;
+    color: var(--ink-3);
+    font-size: 0.92rem;
+}
+
+.tri-summary.pending svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    margin-top: 3px;
+}
+
+.tri-block {
+    margin-top: 16px;
+}
+
+.tri-block .label {
+    margin-bottom: 8px;
+}
+
+.tri-bars {
+    margin-top: 18px;
+}
+
+.tri-bars .bar-row+.bar-row {
+    margin-top: 9px;
+}
+
+/* The card shows Skills / Role fit / Experience; the full drawer shows Education too. */
+.tri-bars .bar-row:nth-child(n+4) {
+    display: none;
+}
+
+/* Decision buttons */
+.tri-actions {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 30px;
+    margin-top: 6px;
+}
+
+.tri-act {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.tri-act-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--ink-2);
+}
+
+.tri-circle {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--solid);
+    color: var(--ink-2);
+    box-shadow: var(--e3), 0 0 0 1px var(--glass-edge);
+    transition: transform var(--t-fast) var(--ease), box-shadow var(--t-med), color var(--t-fast);
+}
+
+.tri-circle svg {
+    width: 26px;
+    height: 26px;
+}
+
+.tri-circle:hover:not(:disabled) {
+    transform: translateY(-3px);
+    color: var(--ink);
+}
+
+.tri-circle:active:not(:disabled) {
+    transform: translateY(0) scale(0.96);
+}
+
+.tri-circle:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.tri-circle.main {
+    width: 84px;
+    height: 84px;
+    background: var(--brand);
+    color: #fff;
+    box-shadow: 0 22px 32px -12px rgba(34, 102, 252, 0.85);
+}
+
+.tri-circle.main svg {
+    width: 32px;
+    height: 32px;
+}
+
+.tri-circle.main:hover:not(:disabled) {
+    background: var(--brand-600);
+    color: #fff;
+}
+
+.tri-hints {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    margin-top: 16px;
+}
+
+.tri-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 10px;
+    border-radius: var(--r-pill);
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--ink-3);
+    transition: background var(--t-fast), color var(--t-fast);
+}
+
+.tri-hint:hover:not(:disabled) {
+    background: var(--glass-2);
+    color: var(--ink);
+}
+
+.tri-hint:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.tri-skel {
+    display: grid;
+    gap: 14px;
+}
+
+.tri-skel .skeleton {
+    height: 56px;
+    border-radius: 22px;
+}
+
+.tri-skel .skeleton.tall {
+    height: 520px;
+    border-radius: 32px;
+}
+
+.triage .empty {
+    margin: auto;
+    max-width: 520px;
+    width: 100%;
+}
+
+.empty-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+/* ── Queue (right) ────────────────────────────────────────────────────── */
+.tri-queue {
+    display: flex;
+    flex-direction: column;
+    padding: 20px;
+    min-height: 0;
+    overflow: hidden;
+    border-radius: var(--r-xl);
+    box-shadow: var(--e2), inset 0 1px 0 var(--highlight), 0 0 0 1px var(--glass-edge);
+}
+
+.tri-queue-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tri-filters {
+    display: grid;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.tri-filters .field {
+    height: 40px;
+    font-size: 0.84rem;
+}
+
+.tri-filters .input-wrap>.field {
+    padding-left: 40px;
+}
+
+.tri-filter-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.tri-filter-row select.field {
+    padding-left: 12px;
+}
+
+.tri-list {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    margin: 12px -8px 0;
+    padding: 0 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.tri-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 18px;
+    text-align: left;
+    transition: background var(--t-fast);
+}
+
+.tri-row:hover {
+    background: var(--glass-2);
+}
+
+.tri-row.on {
+    background: var(--chip);
+    box-shadow: inset 3px 0 0 var(--brand);
+}
+
+.tri-row-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.tri-row-title {
+    font-weight: 600;
+    font-size: 0.88rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tri-row-meta {
+    font-size: 0.74rem;
+    color: var(--ink-3);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tri-list-empty {
+    display: grid;
+    gap: 12px;
+    justify-items: start;
+    padding: 14px 8px;
+    color: var(--ink-3);
+    font-size: 0.86rem;
+}
+
+/* ── Medium: summary becomes a slim strip across the top ──────────────── */
+@media (max-width: 1199px) {
+    .triage {
+        grid-template-columns: minmax(0, 1fr) 300px;
+        grid-template-areas: "sum sum" "stage queue";
+        grid-template-rows: auto minmax(0, 1fr);
+        height: auto;
+        min-height: calc(100vh - var(--rail-gap) * 2);
+    }
+
+    .tri-sum {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 30px;
+        padding: 12px 22px;
+        overflow: visible;
+    }
+
+    .tri-sum-head {
+        flex: 1 1 auto;
+        align-items: center;
+        gap: 14px;
+        justify-content: flex-start;
+    }
+
+    .tri-sum-head .tri-sub {
+        display: none;
+    }
+
+    .tri-sum h1 {
+        font-size: 1.2rem;
+        margin-top: 2px;
+    }
+
+    .tri-count {
+        display: flex;
+        align-items: baseline;
+        gap: 10px;
+    }
+
+    .tri-count .tri-sub {
+        margin: 0;
+    }
+
+    .tri-big {
+        font-size: 1.9rem;
+    }
+
+    .tri-big span {
+        font-size: 1rem;
+    }
+
+    .tri-stats {
+        display: flex;
+        gap: 2px 22px;
+        flex-wrap: wrap;
+    }
+
+    .tri-stat {
+        width: auto;
+        padding: 2px 0;
+        gap: 9px;
+        font-size: 0.84rem;
+    }
+
+    .tri-stat+.tri-stat {
+        border-top: 0;
+    }
+
+    .tri-stat .ic {
+        width: 30px;
+        height: 30px;
+        border-radius: 10px;
+    }
+
+    .tri-stat .ic svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .tri-notes {
+        display: none;
+    }
+
+    .tri-deck {
+        height: clamp(340px, calc(100vh - 412px), 640px);
+    }
+
+    .tri-queue {
+        max-height: calc(100vh - 150px);
+    }
+}
+
+/* ── Short screens (laptops): tighten the card so more of it is visible ── */
+@media (min-width: 921px) and (max-height: 800px) {
+    .tri-card {
+        padding: 20px 26px 18px;
+    }
+
+    .avatar.tri-avatar {
+        width: 56px;
+        height: 56px;
+        border-radius: 18px;
+    }
+
+    .tri-card-title h2 {
+        font-size: 1.4rem;
+    }
+
+    .tri-chips {
+        margin-top: 12px;
+    }
+
+    .tri-summary {
+        margin-top: 10px;
+        font-size: 0.92rem;
+    }
+
+    .tri-block {
+        margin-top: 12px;
+    }
+
+    .tri-bars {
+        margin-top: 12px;
+    }
+
+    .tri-progress {
+        margin-bottom: 12px;
+    }
+
+    .tri-circle {
+        width: 56px;
+        height: 56px;
+    }
+
+    .tri-circle.main {
+        width: 72px;
+        height: 72px;
+    }
+}
+
+/* ── Mobile: one column, slim header, decision buttons pinned in reach ──── */
+@media (max-width: 920px) {
+    .triage {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        height: auto;
+        margin: 16px 12px 104px;
+        min-height: 0;
+    }
+
+    .rail~.triage {
+        margin: 16px 12px 104px;
+    }
+
+    .tri-stage {
+        max-width: none;
+    }
+
+    .tri-sum {
+        gap: 10px 14px;
+        padding: 12px 16px;
+    }
+
+    .tri-sum-head {
+        flex: 1 1 auto;
+    }
+
+    .tri-sum-head .tri-sub {
+        display: none;
+    }
+
+    .tri-sum h1 {
+        font-size: 1.15rem;
+    }
+
+    .tri-count {
+        margin-left: auto;
+    }
+
+    .tri-big {
+        font-size: 1.6rem;
+    }
+
+    .tri-stats {
+        width: 100%;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 8px;
+        padding: 2px 2px 4px;
+        scrollbar-width: none;
+    }
+
+    .tri-stats::-webkit-scrollbar {
+        display: none;
+    }
+
+    .tri-stat {
+        flex: 0 0 auto;
+        padding: 5px 12px 5px 5px;
+        border-radius: var(--r-pill);
+        background: var(--glass-2);
+        box-shadow: 0 0 0 1px var(--glass-edge) inset;
+        font-size: 0.8rem;
+        gap: 8px;
+        white-space: nowrap;
+    }
+
+    .tri-stat .ic {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+    }
+
+    .tri-stat .ic svg {
+        width: 14px;
+        height: 14px;
+    }
+
+    .tri-deck {
+        height: 470px;
+        margin-bottom: 22px;
+    }
+
+    .tri-card {
+        padding: 22px 20px 16px;
+    }
+
+    .tri-card-title h2 {
+        font-size: 1.4rem;
+    }
+
+    .avatar.tri-avatar {
+        width: 56px;
+        height: 56px;
+        border-radius: 18px;
+    }
+
+    /* Always reachable while you read the card: pinned above the tab bar. */
+    .tri-actions {
+        position: sticky;
+        bottom: 92px;
+        z-index: 30;
+        gap: 18px;
+        width: fit-content;
+        margin: 0 auto;
+        padding: 10px 22px 8px;
+        border-radius: 30px;
+        background: var(--solid);
+        box-shadow: var(--e3), 0 0 0 1px var(--glass-edge);
+    }
+
+    .tri-circle {
+        width: 54px;
+        height: 54px;
+        box-shadow: var(--e1), 0 0 0 1px var(--glass-edge);
+    }
+
+    .tri-circle svg {
+        width: 22px;
+        height: 22px;
+    }
+
+    .tri-circle.main {
+        width: 68px;
+        height: 68px;
+        box-shadow: 0 14px 22px -10px rgba(34, 102, 252, 0.85);
+    }
+
+    .tri-circle.main svg {
+        width: 28px;
+        height: 28px;
+    }
+
+    .tri-act {
+        gap: 4px;
+    }
+
+    .tri-act-label {
+        font-size: 0.7rem;
+    }
+
+    .tri-act .kbd {
+        display: none;
+    }
+
+    .tri-hints {
+        margin-top: 12px;
+    }
+
+    .tri-queue {
+        max-height: 460px;
+    }
+}

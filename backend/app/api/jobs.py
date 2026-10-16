@@ -19,6 +19,8 @@ from app.services.job_service import (
     get_user_roles,
     user_job_scope,
 )
+from app.services.dismiss_service import dismiss_job, dismissed_ids, restore_job
+from app.services.logo_service import logo_for, logo_map
 from app.services.role_filter import title_matches_roles
 
 
@@ -34,6 +36,7 @@ def _to_response(
     match: dict | None,
     *,
     with_description: bool,
+    logo: str | None = None,
 ) -> JobResponse:
     match = match or {}
 
@@ -67,6 +70,7 @@ def _to_response(
         ),
         role_summary=analysis.role_summary if analysis else None,
         analyzed=analysis is not None,
+        company_logo_url=logo,
     )
 
 
@@ -93,6 +97,8 @@ def get_jobs(
     # Only jobs whose title matches your target roles. Pass false to see
     # everything stored for your companies.
     role_filter: bool = Query(default=True),
+    # true -> only the jobs you hid (so you can restore them).
+    dismissed: bool = Query(default=False),
 ):
     scope = user_job_scope(db, user_id)
 
@@ -108,6 +114,14 @@ def get_jobs(
         .filter(Job.status == JobStatus.ACTIVE, scope)
         .all()
     )
+
+    hidden = dismissed_ids(db, user_id)
+
+    if dismissed:
+        rows = [(job, analysis) for job, analysis in rows if job.id in hidden]
+        role_filter = False          # you saw these once; show them all
+    else:
+        rows = [(job, analysis) for job, analysis in rows if job.id not in hidden]
 
     if role_filter:
         roles = get_user_roles(db, user_id)
@@ -138,21 +152,22 @@ def get_jobs(
         )
     )
 
+    page = scored[offset: offset + limit]
+    logos = logo_map(db, {job.company_name for job, _, _ in page})
+
     return [
-        _to_response(job, analysis, match, with_description=False)
-        for job, analysis, match in scored[offset: offset + limit]
+        _to_response(
+            job, analysis, match,
+            with_description=False,
+            logo=logo_for(logos, job.company_name),
+        )
+        for job, analysis, match in page
     ]
 
 
-@router.get(
-    "/{job_id}",
-    response_model=JobResponse,
-)
-def get_job(
-    job_id: int,
-    user_id: UUID = Depends(get_current_user_id),
-    db: Session = Depends(get_db),
-):
+def _get_visible_job(db: Session, user_id: UUID, job_id: int) -> Job:
+    """The job, if this user may see it (tracks the company, or tracked the job)."""
+
     job = db.query(Job).filter(Job.id == job_id).first()
 
     if not job:
@@ -174,10 +189,64 @@ def get_job(
         if not allowed:
             raise HTTPException(status_code=404, detail="Job not found.")
 
+    return job
+
+
+@router.get(
+    "/{job_id}",
+    response_model=JobResponse,
+)
+def get_job(
+    job_id: int,
+    user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    job = _get_visible_job(db, user_id, job_id)
+
     analysis = (
         db.query(JobAnalysis).filter(JobAnalysis.job_id == job.id).first()
     )
 
     match = _score(build_match_context(db, user_id), job, analysis)
+    logo = logo_for(logo_map(db, {job.company_name}), job.company_name)
 
-    return _to_response(job, analysis, match, with_description=True)
+    return _to_response(job, analysis, match, with_description=True, logo=logo)
+
+
+@router.post("/{job_id}/dismiss")
+def hide_job(
+    job_id: int,
+    user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Mark a job "not relevant" for this user only."""
+
+    _get_visible_job(db, user_id, job_id)
+
+    try:
+        dismiss_job(db, user_id, job_id)
+    except Exception as exc:  # noqa: BLE001 - e.g. the table could not be created
+        db.rollback()
+
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Hiding jobs isn't available yet because the database table "
+                "is missing. See backend/migrations/001_hidden_jobs_and_logos.sql."
+            ),
+        ) from exc
+
+    return {"message": "Job hidden."}
+
+
+@router.delete("/{job_id}/dismiss")
+def unhide_job(
+    job_id: int,
+    user_id: UUID = Depends(get_current_user_id),
+    db: Session = Depends(get_db),
+):
+    """Undo hide_job."""
+
+    restore_job(db, user_id, job_id)
+
+    return {"message": "Job restored."}

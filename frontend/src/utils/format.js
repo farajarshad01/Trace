@@ -51,33 +51,6 @@ export function initials(name = "") {
 }
 
 
-const GRADIENTS = [
-    ["#2266fc", "#6f5cff"], ["#7a5cff", "#d65cff"], ["#12bfe6", "#2266fc"],
-    ["#0fa56b", "#12bfe6"], ["#ff7a59", "#ff3d81"], ["#f5a524", "#ff6a3d"],
-    ["#4f46e5", "#06b6d4"], ["#e5484d", "#9b5cff"],
-];
-
-export function avatarGradient(seed = "") {
-    let hash = 0;
-
-    for (const char of String(seed)) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
-
-    const [a, b] = GRADIENTS[hash % GRADIENTS.length];
-
-    return `linear-gradient(135deg, ${a}, ${b})`;
-}
-
-
-/** good >= 80, brand >= 60, warn >= 40, else bad */
-export function scoreTone(score) {
-    if (score >= 80) return "good";
-    if (score >= 60) return "brand";
-    if (score >= 40) return "warn";
-
-    return "bad";
-}
-
-
 export function hostname(url) {
     try {
         return new URL(url).hostname.replace(/^www\./, "");

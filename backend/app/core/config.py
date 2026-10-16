@@ -119,6 +119,9 @@ class Settings:
         "MAX_DETAIL_FETCHES_PER_SOURCE", 40,
     )
 
+    # Company-logo lookups make a few HTTP requests each (cached afterwards).
+    MAX_LOGO_LOOKUPS_PER_RUN: int = _get_int("MAX_LOGO_LOOKUPS_PER_RUN", 15)
+
     # Input size guards (characters, not tokens).
     JOB_DESCRIPTION_MAX_CHARS: int = _get_int(
         "JOB_DESCRIPTION_MAX_CHARS", 12000, minimum=1000,

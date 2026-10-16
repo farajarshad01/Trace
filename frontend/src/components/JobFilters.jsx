@@ -1,7 +1,7 @@
 import Icon from "./Icon";
 
 
-export default function JobFilters({ filters, onChange, companies }) {
+export default function JobFilters({ filters, onChange, companies, hiddenCount = 0, showingHidden = false, onToggleHidden }) {
     const set = (key) => (event) => onChange({ ...filters, [key]: event.target.value });
 
     return (
@@ -35,6 +35,13 @@ export default function JobFilters({ filters, onChange, companies }) {
                 <option value="match">Best match</option>
                 <option value="newest">Newest</option>
             </select>
+
+            {onToggleHidden && (hiddenCount > 0 || showingHidden) && (
+                <button type="button" className={`btn ${showingHidden ? "btn-primary" : "btn-glass"}`} onClick={onToggleHidden}>
+                    <Icon name={showingHidden ? "undo" : "eyeoff"} />
+                    {showingHidden ? "Back to jobs" : `Hidden (${hiddenCount})`}
+                </button>
+            )}
         </div>
     );
 }

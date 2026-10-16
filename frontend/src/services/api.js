@@ -127,7 +127,15 @@ export const createSource = (companyName, careerUrl) =>
 export const deleteSource = (sourceId) =>
     apiRequest(`/api/sources/${sourceId}`, { method: "DELETE" });
 
-export const getJobs = (limit = 200) => apiRequest(`/api/jobs?limit=${limit}`);
+export const getJobs = (limit = 200, { dismissed = false } = {}) =>
+    apiRequest(`/api/jobs?limit=${limit}${dismissed ? "&dismissed=true" : ""}`);
+
+// Hide a job you find irrelevant (per user), and bring it back.
+export const dismissJob = (jobId) =>
+    apiRequest(`/api/jobs/${jobId}/dismiss`, { method: "POST" });
+
+export const restoreJob = (jobId) =>
+    apiRequest(`/api/jobs/${jobId}/dismiss`, { method: "DELETE" });
 
 export const getJob = (jobId) => apiRequest(`/api/jobs/${jobId}`);
 

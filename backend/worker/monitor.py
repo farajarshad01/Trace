@@ -5,6 +5,7 @@ Hourly job monitor.
     python -m worker.monitor --no-ai         # scrape only (debugging)
     python -m worker.monitor --max-analyses 5
     python -m worker.monitor --retry-failed  # re-queue jobs whose analysis failed
+    python -m worker.monitor --logos-only    # fetch company logos now
 
 Why Gemini was "always busy"
 ----------------------------
@@ -61,7 +62,8 @@ from app.ai.errors import (
 from app.ai.job_analyzer import analyze_job, is_analyzable
 from app.ai.matcher import _role_tokens
 from app.core.config import settings
-from app.database.connection import SessionLocal
+from app.database.connection import SessionLocal, engine
+from app.database.extras import DismissedJob, ensure_extra_tables
 from app.database.models import (
     CareerSource,
     Job,
@@ -78,6 +80,7 @@ from app.services.job_service import (
     save_scraped_job,
     store_analysis,
 )
+from app.services.logo_service import ensure_logo
 from app.services.role_filter import filter_jobs
 from app.services.source_service import get_scraper
 
@@ -114,6 +117,7 @@ class Summary:
     jobs_filtered: int = 0
     jobs_new: int = 0
     jobs_closed: int = 0
+    logos_looked_up: int = 0
     analyzed: int = 0
     reused: int = 0
     failed_permanent: int = 0
@@ -126,6 +130,20 @@ class Summary:
 # Phase 1 - scraping
 # ══════════════════════════════════════════════════════════════════════════
 
+def lookup_logo(db, source: CareerSource, summary: Summary, budget: int) -> None:
+    """Best-effort company logo; never allowed to break scraping."""
+
+    if summary.logos_looked_up >= budget:
+        return
+
+    try:
+        if ensure_logo(db, source.company_name, source.career_url):
+            summary.logos_looked_up += 1
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        logger.info("  logo lookup failed for %s: %s", source.company_name, _short(exc))
+
+
 def process_source(
     db,
     source: CareerSource,
@@ -135,6 +153,8 @@ def process_source(
 ) -> None:
     company = source.company_name
     logger.info("Checking %s: %s", company, source.career_url)
+
+    lookup_logo(db, source, summary, settings.MAX_LOGO_LOOKUPS_PER_RUN)
 
     scraper = get_scraper(source.career_url, source.platform)
     cache_key = normalize_source_url(source.career_url)
@@ -290,7 +310,7 @@ def pending_job_ids(db) -> list[int]:
     """Active jobs with text but no analysis, most relevant + newest first."""
 
     rows = (
-        db.query(Job.id, Job.title, Job.first_seen_at)
+        db.query(Job.id, Job.title, Job.first_seen_at, Job.company_name)
         .outerjoin(JobAnalysis, JobAnalysis.job_id == Job.id)
         .filter(
             JobAnalysis.id.is_(None),
@@ -300,6 +320,8 @@ def pending_job_ids(db) -> list[int]:
         )
         .all()
     )
+
+    rows = _without_fully_hidden(db, rows)
 
     role_sets = _active_role_token_sets(db)
 
@@ -311,6 +333,49 @@ def pending_job_ids(db) -> list[int]:
     )
 
     return [r.id for r in rows]
+
+
+def _without_fully_hidden(db, rows):
+    """
+    Do not spend Gemini quota on a job everyone who follows its company has
+    hidden. (If even one follower has not hidden it, it is still analysed.)
+    """
+
+    if not rows:
+        return rows
+
+    try:
+        hidden: dict[int, set] = {}
+
+        for job_id, user_id in db.query(DismissedJob.job_id, DismissedJob.user_id).all():
+            hidden.setdefault(job_id, set()).add(user_id)
+
+        if not hidden:
+            return rows
+
+        followers: dict[str, set] = {}
+
+        for name, user_id in (
+            db.query(CareerSource.company_name, CareerSource.user_id)
+            .filter(CareerSource.is_active.is_(True))
+            .all()
+        ):
+            followers.setdefault((name or "").strip().lower(), set()).add(user_id)
+    except Exception:  # noqa: BLE001 - table missing: just don't filter
+        db.rollback()
+        return rows
+
+    kept = []
+
+    for row in rows:
+        who = followers.get((row.company_name or "").strip().lower(), set())
+
+        if who and who <= hidden.get(row.id, set()):
+            continue
+
+        kept.append(row)
+
+    return kept
 
 
 def _copy_from_twin(db, job: Job) -> bool:
@@ -464,20 +529,50 @@ def reset_failed_analyses(db) -> int:
 # entry point
 # ══════════════════════════════════════════════════════════════════════════
 
+def logos_only(db, summary: Summary) -> None:
+    """Look up logos for every followed company now (no scraping, no AI)."""
+
+    seen: set[str] = set()
+
+    for source in (
+        db.query(CareerSource)
+        .filter(CareerSource.is_active.is_(True))
+        .order_by(CareerSource.id)
+        .all()
+    ):
+        key = (source.company_name or "").strip().lower()
+
+        if key in seen:
+            continue
+
+        seen.add(key)
+        lookup_logo(db, source, summary, budget=10_000)
+
+
 def run_monitor(
     *,
     scrape: bool = True,
     analyze: bool = True,
     max_analyses: int | None = None,
     retry_failed: bool = False,
+    only_logos: bool = False,
 ) -> Summary:
     summary = Summary()
     gemini.reset_stats()
 
     run_started_at = datetime.now(timezone.utc)
+
+    # Hidden jobs / company logos live in their own tables (created if absent).
+    ensure_extra_tables(engine)
+
     db = SessionLocal()
 
     try:
+        if only_logos:
+            logos_only(db, summary)
+            logger.info("Logos looked up for %d companies.", summary.logos_looked_up)
+            return summary
+
         if retry_failed:
             logger.info(
                 "Re-queued %d failed analyses.", reset_failed_analyses(db),
@@ -533,6 +628,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="only analyse jobs already in the database")
     parser.add_argument("--max-analyses", type=int, default=None,
                         help="override MAX_ANALYSES_PER_RUN for this run")
+    parser.add_argument("--logos-only", action="store_true",
+                        help="only fetch company logos (no scraping, no AI)")
     parser.add_argument("--retry-failed", action="store_true",
                         help="re-queue jobs whose analysis previously failed")
     args = parser.parse_args(argv)
@@ -547,6 +644,7 @@ def main(argv: list[str] | None = None) -> int:
         analyze=not args.no_ai,
         max_analyses=args.max_analyses,
         retry_failed=args.retry_failed,
+        only_logos=args.logos_only,
     )
 
     return 0

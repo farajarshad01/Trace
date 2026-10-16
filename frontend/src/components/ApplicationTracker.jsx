@@ -93,7 +93,7 @@ export default function ApplicationTracker({ job, initialApplication = null, onC
             <div className="modal-wrap" onClick={(e) => { if (e.target === e.currentTarget) close(); }}>
                 <div className="modal glass strong" role="dialog" aria-modal="true" aria-label="Track application">
                     <div className="modal-head">
-                        <Avatar name={job.company_name} size="sm" />
+                        <Avatar name={job.company_name} logo={job.company_logo_url} size="sm" />
 
                         <div style={{ minWidth: 0 }}>
                             <div className="jc-company">{job.company_name}</div>

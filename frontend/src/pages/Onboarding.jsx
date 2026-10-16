@@ -114,7 +114,7 @@ export default function Onboarding({ onComplete }) {
             <div className="onb-logo"><Logo height={32} /></div>
 
             <div className="onb-head">
-                <h1>{step === 1 ? "Let's get to know you" : <>Looking good, <span className="grad-text">here's your profile</span></>}</h1>
+                <h1>{step === 1 ? "Let's get to know you" : <>Looking good, <span className="accent-text">here's your profile</span></>}</h1>
                 <p>{step === 1 ? "Upload your resume and our AI will build your profile in seconds." : "Pick the roles you want Trace to hunt for."}</p>
             </div>
 

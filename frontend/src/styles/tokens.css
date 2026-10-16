@@ -23,15 +23,18 @@
     --t-fast: 140ms;
     --t-med: 260ms;
 
-    /* Brand (from the logo) */
+    /* Brand: the solid blue from the logo. It is the ONLY accent colour.
+       (Green/red below are functional signals only: offers, rejections,
+       success and error messages.) */
     --brand: #2266fc;
     --brand-600: #1a55d9;
-    --violet: #7a5cff;
-    --cyan: #12bfe6;
-    --grad-brand: linear-gradient(135deg, #2266fc 0%, #6f5cff 100%);
-    --grad-text: linear-gradient(120deg, #2266fc 0%, #7a5cff 60%, #12bfe6 110%);
+    /* hover / pressed */
 
     --nav-h: 68px;
+
+    /* The page background is flat. For a faint blue glow behind the glass,
+       set this to 1 (see .bg-orb in base.css). */
+    --orb-opacity: 0;
 }
 
 /* ── Light ─────────────────────────────────────────────────────────────── */
@@ -39,16 +42,14 @@
 :root[data-theme="light"] {
     color-scheme: light;
 
-    --bg: #e9efff;
-    --orb-1: rgba(34, 102, 252, 0.40);
-    --orb-2: rgba(122, 92, 255, 0.32);
-    --orb-3: rgba(18, 191, 230, 0.32);
-    --orb-4: rgba(255, 140, 200, 0.24);
+    --bg: #e8eefb;
+    --orb: rgba(34, 102, 252, 0.35);
 
     --ink: #141e32;
     --ink-2: #46526b;
     --ink-3: #78849b;
     --brand-ink: #1a55d9;
+    --brand-deep: #123f9f;
 
     --glass: rgba(255, 255, 255, 0.55);
     --glass-2: rgba(255, 255, 255, 0.72);
@@ -67,29 +68,31 @@
 
     --good: #0f9b4a;
     --good-bg: rgba(18, 161, 80, 0.13);
-    --warn: #b86e00;
-    --warn-bg: rgba(245, 158, 11, 0.17);
     --bad: #d02f40;
     --bad-bg: rgba(217, 48, 64, 0.11);
 
     --ring: rgba(34, 102, 252, 0.38);
     --overlay: rgba(14, 22, 48, 0.38);
+
+    /* Elevation scale + an opaque surface for cards that must hide what is behind them */
+    --solid: #ffffff;
+    --e1: 0 1px 2px rgba(20, 30, 70, 0.05), 0 6px 14px -8px rgba(34, 70, 160, 0.22);
+    --e2: 0 2px 4px rgba(20, 30, 70, 0.05), 0 16px 30px -14px rgba(34, 70, 160, 0.34);
+    --e3: 0 6px 10px rgba(20, 30, 70, 0.06), 0 34px 60px -22px rgba(34, 70, 160, 0.5);
 }
 
 /* ── Dark ──────────────────────────────────────────────────────────────── */
 :root[data-theme="dark"] {
     color-scheme: dark;
 
-    --bg: #060a14;
-    --orb-1: rgba(34, 102, 252, 0.50);
-    --orb-2: rgba(122, 92, 255, 0.40);
-    --orb-3: rgba(18, 191, 230, 0.24);
-    --orb-4: rgba(255, 100, 180, 0.16);
+    --bg: #070b16;
+    --orb: rgba(34, 102, 252, 0.45);
 
     --ink: #eef2ff;
     --ink-2: #b1bbd3;
     --ink-3: #7480a0;
     --brand-ink: #7ba6ff;
+    --brand-deep: #a9c4ff;
 
     --glass: rgba(255, 255, 255, 0.06);
     --glass-2: rgba(255, 255, 255, 0.09);
@@ -108,11 +111,14 @@
 
     --good: #3fe0a0;
     --good-bg: rgba(63, 224, 160, 0.14);
-    --warn: #fbbf4a;
-    --warn-bg: rgba(251, 191, 74, 0.15);
     --bad: #ff7a86;
     --bad-bg: rgba(255, 122, 134, 0.14);
 
     --ring: rgba(123, 166, 255, 0.5);
     --overlay: rgba(2, 5, 14, 0.62);
+
+    --solid: #141b2d;
+    --e1: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 18px -10px rgba(0, 0, 0, 0.7);
+    --e2: 0 2px 4px rgba(0, 0, 0, 0.5), 0 18px 34px -14px rgba(0, 0, 0, 0.8);
+    --e3: 0 6px 10px rgba(0, 0, 0, 0.5), 0 36px 64px -20px rgba(0, 0, 0, 0.9);
 }

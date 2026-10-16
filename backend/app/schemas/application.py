@@ -25,6 +25,7 @@ class ApplicationJob(BaseModel):
     location: str | None = None
     original_url: str
     status: str
+    company_logo_url: str | None = None
 
     @field_validator("status", mode="before")
     @classmethod

@@ -132,7 +132,7 @@ export default function Applications({ onNavigate }) {
                                         onClick={() => setEditing(app)}
                                         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEditing(app); } }}
                                     >
-                                        <span className="ac-company">{job.company_name}</span>
+                                        <span className="ac-head"><Avatar name={job.company_name} logo={job.company_logo_url} size="xs" /><span className="ac-company">{job.company_name}</span></span>
                                         <span className="ac-title">{job.title}</span>
                                         {app.notes && <span className="ac-note">{app.notes}</span>}
                                         <span className="ac-meta"><Icon name="calendar" />{app.applied_at ? `Applied ${formatDate(app.applied_at)}` : `Saved ${formatDate(app.created_at)}`}</span>
@@ -151,7 +151,7 @@ export default function Applications({ onNavigate }) {
 
                         return (
                             <button key={app.id} type="button" className="app-row glass interactive" onClick={() => setEditing(app)}>
-                                <Avatar name={job.company_name} />
+                                <Avatar name={job.company_name} logo={job.company_logo_url} />
 
                                 <div className="ar-main">
                                     <div className="jc-company">{job.company_name}</div>

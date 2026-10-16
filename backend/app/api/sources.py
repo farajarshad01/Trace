@@ -14,6 +14,7 @@ from app.services.job_service import (
     detect_platform,
     normalize_source_url,
 )
+from app.services.logo_service import logo_for, logo_map
 
 
 router = APIRouter(
@@ -30,7 +31,7 @@ def get_sources(
     user_id: UUID = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
-    return (
+    sources = (
         db.query(CareerSource)
         .filter(
             CareerSource.user_id == user_id,
@@ -39,6 +40,13 @@ def get_sources(
         .order_by(CareerSource.created_at.desc())
         .all()
     )
+
+    logos = logo_map(db, {s.company_name for s in sources})
+
+    for source in sources:
+        source.logo_url = logo_for(logos, source.company_name)
+
+    return sources
 
 
 @router.post(

@@ -8,9 +8,9 @@ import { hostname, normalizeUrl, timeAgo } from "../utils/format";
 
 
 const PLATFORMS = {
-    greenhouse: { label: "Greenhouse", tone: "good" },
+    greenhouse: { label: "Greenhouse", tone: "" },
     lever: { label: "Lever", tone: "" },
-    workday: { label: "Workday", tone: "warn" },
+    workday: { label: "Workday", tone: "" },
     generic: { label: "Careers page", tone: "neutral" },
 };
 
@@ -100,9 +100,9 @@ export default function Companies() {
 
                 <div className="platforms">
                     <span>Works best with</span>
-                    <span className="chip good">Greenhouse</span>
+                    <span className="chip">Greenhouse</span>
                     <span className="chip">Lever</span>
-                    <span className="chip warn">Workday</span>
+                    <span className="chip">Workday</span>
                     <span className="chip neutral">Other careers pages</span>
                 </div>
             </section>
@@ -117,7 +117,7 @@ export default function Companies() {
 
                     return (
                         <article className="source-card glass" key={source.id} style={{ "--i": i }}>
-                            <Avatar name={source.company_name} />
+                            <Avatar name={source.company_name} logo={source.logo_url} />
 
                             <div className="sc-main">
                                 <h3>{source.company_name}</h3>

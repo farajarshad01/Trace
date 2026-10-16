@@ -19,7 +19,7 @@ function verdict(score) {
 }
 
 
-export default function JobDrawer({ job, application, onClose, onTrack }) {
+export default function JobDrawer({ job, application, onClose, onTrack, onDismiss }) {
     const [detail, setDetail] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -48,7 +48,7 @@ export default function JobDrawer({ job, application, onClose, onTrack }) {
 
             <aside className="drawer glass strong" role="dialog" aria-modal="true" aria-label={`${j.title} at ${j.company_name}`}>
                 <div className="drawer-head">
-                    <Avatar name={j.company_name} />
+                    <Avatar name={j.company_name} logo={j.company_logo_url} />
 
                     <div className="drawer-title">
                         <div className="jc-company">{j.company_name}</div>
@@ -99,14 +99,14 @@ export default function JobDrawer({ job, application, onClose, onTrack }) {
                             {j.matched_skills?.length > 0 && (
                                 <>
                                     <div className="section-title">Skills you have</div>
-                                    <div className="chips">{j.matched_skills.map((s) => <span key={s} className="chip good"><Icon name="check" strokeWidth={3} />{s}</span>)}</div>
+                                    <div className="chips">{j.matched_skills.map((s) => <span key={s} className="chip"><Icon name="check" strokeWidth={3} />{s}</span>)}</div>
                                 </>
                             )}
 
                             {j.missing_skills?.length > 0 && (
                                 <div style={{ marginTop: j.matched_skills?.length ? 18 : 0 }}>
                                     <div className="section-title">Skills to build</div>
-                                    <div className="chips">{j.missing_skills.map((s) => <span key={s} className="chip warn">{s}</span>)}</div>
+                                    <div className="chips">{j.missing_skills.map((s) => <span key={s} className="chip neutral">{s}</span>)}</div>
                                 </div>
                             )}
                         </section>
@@ -139,6 +139,12 @@ export default function JobDrawer({ job, application, onClose, onTrack }) {
                 </div>
 
                 <div className="drawer-foot">
+                    {onDismiss && !application && (
+                        <button type="button" className="btn btn-ghost" style={{ flex: "0 0 auto" }} onClick={() => onDismiss(job)} title="Not relevant - hide this job">
+                            <Icon name="eyeoff" /> Not relevant
+                        </button>
+                    )}
+
                     <a className="btn btn-glass" href={j.original_url} target="_blank" rel="noopener noreferrer">Apply <Icon name="external" /></a>
                     <button type="button" className="btn btn-primary" onClick={() => onTrack(job)}>
                         <Icon name="bookmark" /> {application ? "Update tracking" : "Track this job"}

@@ -13,6 +13,7 @@ from app.schemas.application import (
     ApplicationResponse,
     ApplicationUpdate,
 )
+from app.services.logo_service import logo_for, logo_map
 from app.services.application_service import (
     delete_application,
     update_application,
@@ -25,6 +26,21 @@ router = APIRouter(
 )
 
 
+def _with_logos(db: Session, applications):
+    """Attach each job's company logo (a transient attribute the schema reads)."""
+
+    items = [a for a in applications if a is not None]
+    logos = logo_map(db, {a.job.company_name for a in items if a.job})
+
+    for application in items:
+        if application.job is not None:
+            application.job.company_logo_url = logo_for(
+                logos, application.job.company_name,
+            )
+
+    return applications
+
+
 @router.get(
     "",
     response_model=list[ApplicationResponse],
@@ -35,12 +51,13 @@ def get_applications(
 ):
     # The job is embedded so the Applications page no longer has to fetch
     # (and be limited to) the dashboard's job list to find a title.
-    return (
+    return _with_logos(
+        db,
         db.query(Application)
         .options(joinedload(Application.job))
         .filter(Application.user_id == user_id)
         .order_by(Application.updated_at.desc())
-        .all()
+        .all(),
     )
 
 
@@ -53,7 +70,7 @@ def get_application(
     user_id: UUID = Depends(get_current_user_id),
     db: Session = Depends(get_db),
 ):
-    return (
+    application = (
         db.query(Application)
         .options(joinedload(Application.job))
         .filter(
@@ -62,6 +79,10 @@ def get_application(
         )
         .first()
     )
+
+    _with_logos(db, [application])
+
+    return application
 
 
 @router.put(
@@ -87,7 +108,7 @@ def save_application(
         notes=payload.notes,
     )
 
-    return (
+    application = (
         db.query(Application)
         .options(joinedload(Application.job))
         .filter(
@@ -96,6 +117,10 @@ def save_application(
         )
         .first()
     )
+
+    _with_logos(db, [application])
+
+    return application
 
 
 @router.delete("/{job_id}")

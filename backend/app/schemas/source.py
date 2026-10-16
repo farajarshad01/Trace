@@ -15,3 +15,4 @@ class CareerSourceResponse(BaseModel):
     platform: str | None = None
     is_active: bool
     last_checked_at: datetime | None = None
+    logo_url: str | None = None

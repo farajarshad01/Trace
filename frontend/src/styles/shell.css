@@ -1,0 +1,159 @@
+/* ───────────────────────────────────────────────────────────────────────
+   App shell: a floating icon rail on desktop, the original top bar and
+   bottom tab bar on mobile. Every page lives inside this shell.
+   ─────────────────────────────────────────────────────────────────────── */
+
+:root {
+    --rail-w: 76px;
+    --rail-gap: 16px;
+}
+
+/* Stop a page's top margin collapsing through #root (min-height: 100vh), which
+   pushed full-height screens 16px past the viewport and caused a stray scrollbar. */
+#root {
+    display: flow-root;
+}
+
+/* ── Desktop: rail ─────────────────────────────────────────────────────── */
+.rail {
+    position: fixed;
+    z-index: 45;
+    top: var(--rail-gap);
+    bottom: var(--rail-gap);
+    left: var(--rail-gap);
+    width: var(--rail-w);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 18px 0;
+    gap: 8px;
+    border-radius: 32px;
+    box-shadow: var(--e3), inset 0 1px 0 var(--highlight), 0 0 0 1px var(--glass-edge);
+}
+
+.rail-logo {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 48px;
+    border-radius: 16px;
+    transition: transform var(--t-fast) var(--ease);
+}
+
+.rail-logo:hover {
+    transform: scale(1.06);
+}
+
+.rail-logo .brand img {
+    height: 34px;
+    width: auto;
+}
+
+.rail-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.rail-item {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    border-radius: 17px;
+    display: grid;
+    place-items: center;
+    color: var(--ink-3);
+    transition: background var(--t-fast), color var(--t-fast), transform var(--t-fast);
+}
+
+.rail-item svg {
+    width: 22px;
+    height: 22px;
+}
+
+.rail-item:hover {
+    background: var(--glass-2);
+    color: var(--ink);
+}
+
+.rail-item.active {
+    background: var(--brand);
+    color: #fff;
+    box-shadow: 0 12px 22px -8px rgba(34, 102, 252, 0.85);
+}
+
+.rail-bottom {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.rail-bottom .btn-icon {
+    position: relative;
+}
+
+.rail-user {
+    position: relative;
+    display: grid;
+    place-items: center;
+    padding-top: 6px;
+}
+
+/* Labels on hover / keyboard focus */
+.rail [data-label] {
+    position: relative;
+}
+
+.rail [data-label]:hover::after,
+.rail [data-label]:focus-visible::after {
+    content: attr(data-label);
+    position: absolute;
+    left: calc(100% + 16px);
+    top: 50%;
+    transform: translateY(-50%);
+    padding: 6px 11px;
+    border-radius: 10px;
+    background: var(--ink);
+    color: var(--bg);
+    font-size: 0.78rem;
+    font-weight: 600;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 70;
+    box-shadow: var(--e2);
+}
+
+/* Pages sit to the right of the rail */
+.rail~.page {
+    width: auto;
+    max-width: 1240px;
+    margin: 28px 24px 70px calc(var(--rail-w) + var(--rail-gap) * 2 + 8px);
+}
+
+.rail~.toasts {
+    right: 22px;
+}
+
+/* Desktop never shows the mobile chrome */
+@media (min-width: 921px) {
+
+    .topbar,
+    .bottom-nav {
+        display: none;
+    }
+}
+
+/* ── Mobile: the rail gives way to the top bar + bottom tab bar ─────────── */
+@media (max-width: 920px) {
+    .rail {
+        display: none;
+    }
+
+    .rail~.page {
+        width: min(1240px, calc(100% - 32px));
+        margin: 24px auto 110px;
+    }
+}

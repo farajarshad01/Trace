@@ -1,8 +1,5 @@
 import { useEffect, useState } from "react";
 
-import { scoreTone } from "../utils/format";
-
-
 export default function ScoreRing({ value, size = 56, stroke = 5, label = false }) {
     const [shown, setShown] = useState(0);
 
@@ -15,11 +12,10 @@ export default function ScoreRing({ value, size = 56, stroke = 5, label = false 
     const radius = (size - stroke) / 2;
     const circumference = 2 * Math.PI * radius;
     const offset = circumference * (1 - Math.min(Math.max(shown, 0), 100) / 100);
-    const tone = scoreTone(value ?? 0);
 
     return (
         <div
-            className={`ring score-${tone}`}
+            className="ring"
             style={{ width: size, height: size }}
             role="img"
             aria-label={`${Math.round(value)} percent match`}
@@ -29,7 +25,6 @@ export default function ScoreRing({ value, size = 56, stroke = 5, label = false 
                 <circle
                     className="ring-value"
                     cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={stroke}
-                    stroke="var(--score)"
                     strokeDasharray={circumference}
                     strokeDashoffset={offset}
                 />

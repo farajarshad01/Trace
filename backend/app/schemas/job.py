@@ -34,3 +34,6 @@ class JobResponse(BaseModel):
     role_summary: str | None = None
 
     analyzed: bool = False
+
+    # Resolved by the worker; None -> the UI shows the company's initial.
+    company_logo_url: str | None = None
